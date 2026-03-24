@@ -90,7 +90,7 @@ export function QueueTable({ data, rawData, isLoading, onRefresh }: QueueTablePr
   }, [rawData, handleCopy])
 
   const getTier2Class = (channel: string) => {
-    if (channel.includes("TIER2")) {
+    if (channel.includes("Tier2")) {
       return "text-cyan-400 font-semibold"
     }
     return ""
@@ -160,7 +160,7 @@ export function QueueTable({ data, rawData, isLoading, onRefresh }: QueueTablePr
             <thead>
               <tr className="border-b border-cyan-500/30 bg-gradient-to-r from-cyan-900/30 to-blue-900/30">
                 <th className="px-6 py-4 text-left font-bold uppercase tracking-wider text-cyan-300">
-                  Channel
+                  Team
                 </th>
                 <th className="px-6 py-4 text-center font-bold uppercase tracking-wider text-cyan-300">
                   Backlog
@@ -169,7 +169,7 @@ export function QueueTable({ data, rawData, isLoading, onRefresh }: QueueTablePr
                   Tickets
                 </th>
                 <th className="px-6 py-4 text-center font-bold uppercase tracking-wider text-cyan-300">
-                  Head
+                  Agents
                 </th>
               </tr>
             </thead>

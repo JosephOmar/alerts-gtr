@@ -10,26 +10,26 @@ export function processQueueData(data: QueueData[]): TableRow[] {
 
     // Customer mappings
     if (dept === "CS" && (expertise === "live-order" || expertise === "nonlive-order" || expertise === "tier1") && channel === "chat") {
-      return "CUSTOMER TIER1"
+      return "Customer Tier1"
     }
     if (dept === "CS" && expertise === "tier2" && channel === "case-inbox") {
-      return "CUSTOMER TIER2"
+      return "Customer Tier2"
     }
 
     // Rider mappings
     if (dept === "RS" && expertise === "tier1" && channel === "chat") {
-      return "RIDER TIER1"
+      return "Rider Tier1"
     }
     if (dept === "RS" && expertise === "tier2" && channel === "case-inbox") {
-      return "RIDER TIER2"
+      return "Rider Tier2"
     }
 
     // Vendor mappings
     if (dept === "VS" && expertise === "tier1" && channel === "chat") {
-      return "VENDOR CHAT"
+      return "Vendor Chat"
     }
     if (dept === "VS" && (expertise === "tier2" || expertise === "disputes") && channel === "case-inbox") {
-      return "VENDOR TIER2"
+      return "Vendor Tier2"
     }
 
     return null
@@ -50,17 +50,22 @@ export function processQueueData(data: QueueData[]): TableRow[] {
 
     channelMap[channelName].backlog += item.casesBacklog
     channelMap[channelName].tickets += item.activeTicketsCount
-    channelMap[channelName].head += item.onlineAgentCount
+    if (channelName == 'Customer Tier1' || channelName == 'Vendor Tier2'){
+      channelMap[channelName].head = Math.max(item.onlineAgentCount)
+    } else {
+      channelMap[channelName].head += item.onlineAgentCount
+    }
+    
   })
 
   // Order the channels
   const order = [
-    "CUSTOMER TIER1",
-    "RIDER TIER1",
-    "VENDOR CHAT",
-    "CUSTOMER TIER2",
-    "RIDER TIER2",
-    "VENDOR TIER2",
+    "Customer Tier1",
+    "Rider Tier1",
+    "Vendor Chat",
+    "Customer Tier2",
+    "Rider Tier2",
+    "Vendor Tier2",
   ]
 
   return order
@@ -80,7 +85,7 @@ export function getRoundedTime(): string {
 }
 
 export function formatTableAsText(rows: TableRow[]): string {
-  const header = "CHANNEL\tBacklog\tTICKETS\tHEAD"
+  const header = "Team\tBacklog\tTickets\tAgents"
   const dataRows = rows.map(
     (row) => `${row.channel}\t${row.backlog}\t${row.tickets}\t${row.head}`
   )
@@ -251,7 +256,7 @@ export function formatCustomerTier1Text(info: ChannelCapacityInfo): string {
 \t
 Total de Agentes: ${info.totalAgents} Agentes.\t
      • Agentes Control: ${info.controlAgents} Agentes.\t
-     •  Agentes Live: ${info.liveAgents} Agentes.\t
+     • Agentes Live: ${info.liveAgents} Agentes.\t
 \t
 Tickets: ${info.totalTickets} Tickets en gestión\t
      • Tickets No Live: ${info.nonLiveTickets} Contact\t
