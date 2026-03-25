@@ -46,7 +46,7 @@ export default function AdherencePage() {
       }
 
       // Fetch all pages of agent monitor data
-      let allAgents: AgentMonitorResponse["agents"] = []
+      let allAgents: AgentMonitorResponse["list"] = []
       let currentUrl = AGENT_MONITOR_URL
 
       while (currentUrl) {
@@ -62,15 +62,15 @@ export default function AdherencePage() {
         }
 
         const data: AgentMonitorResponse = await response.json()
-        allAgents = [...allAgents, ...data.agents]
+        allAgents = [...allAgents, ...data.list]
 
         // Check if there's a next page
-        if (data.token?.nextPage) {
+        if (data.cursor?.nextPage) {
           const encodedToken = encodeURIComponent(
             JSON.stringify({
-              currentPage: data.token.nextPage,
+              currentPage: data.cursor.nextPage,
               nextPage: "",
-              previousPages: [...data.token.previousPages, data.token.currentPage].filter(Boolean),
+              previousPages: [...data.cursor.previousPages, data.cursor.currentPage].filter(Boolean),
             })
           )
           currentUrl = `https://api-glovo-eu.deliveryherocare.com/oneview/agent-monitor/v1/agents/cursor?filter.agent.status=LUNCH%2CTRAINING%2FQA%2FMEETING%2CSHORT_BREAK%2CASSIGNED_TASK%2CBUSY%2CON_HOLD_CASE%2CON_CALL%2CUNAVAILABLE&orderBy=status&direction=asc&token=${encodedToken}&pageSize=25`

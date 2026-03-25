@@ -87,8 +87,6 @@ export function WorkersTable() {
     setFilters,
     resetFilters,
     fetchWorkers,
-    setLoading,
-    setError,
   } = useWorkersStore()
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -253,20 +251,9 @@ export function WorkersTable() {
     }
   }
 
-  // Force refresh handler
+  // Force refresh handler - calls fetchWorkers with forceRefresh=true
   const handleRefresh = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetch("https://etl-workers.onrender.com/workers/")
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      const data = await response.json()
-      useWorkersStore.setState({ workers: data, lastFetched: Date.now() })
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to fetch workers")
-    } finally {
-      setLoading(false)
-    }
+    await fetchWorkers(true)
   }
 
   return (

@@ -50,27 +50,30 @@ export function processAgentMonitorData(
   const alerts: AuxiliarAlertInfo[] = []
 
   for (const agent of agents) {
+    const timeInStatus = agent.attributes.timeInStatus
+    const email = agent.attributes.email
+    
     // Check if agent exceeds threshold for their status
-    if (!exceedsThreshold(agent.statusAlias, agent.timeInStatus)) {
+    if (!exceedsThreshold(agent.statusAlias, timeInStatus)) {
       continue
     }
 
     // Find worker by email
-    const worker = findWorkerByEmail(agent.email, workers)
+    const worker = findWorkerByEmail(email, workers)
     
     if (!worker) {
       continue
     }
 
     alerts.push({
-      agentEmail: agent.email,
+      agentEmail: email,
       agentName: worker.name,
       teamName: worker.team?.name || "Sin equipo",
       supervisor: worker.supervisor,
       statusAlias: agent.statusAlias,
       statusFormatted: formatStatusAlias(agent.statusAlias),
-      timeInStatus: agent.timeInStatus,
-      timeFormatted: formatTimeInStatus(agent.timeInStatus),
+      timeInStatus: timeInStatus,
+      timeFormatted: formatTimeInStatus(timeInStatus),
     })
   }
 

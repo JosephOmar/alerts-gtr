@@ -37,7 +37,7 @@ interface WorkersState {
   setError: (error: string | null) => void
   setFilters: (filters: Partial<WorkersFilters>) => void
   resetFilters: () => void
-  fetchWorkers: () => Promise<void>
+  fetchWorkers: (forceRefresh?: boolean) => Promise<void>
 }
 
 const defaultFilters: WorkersFilters = {
@@ -65,15 +65,14 @@ export const useWorkersStore = create<WorkersState>()(
       })),
       resetFilters: () => set({ filters: defaultFilters }),
 
-      fetchWorkers: async () => {
+      // fetchWorkers now only fetches from API (called manually via Refresh button)
+      // Does NOT auto-refresh - workers persist in localForage until manual refresh
+      fetchWorkers: async (forceRefresh = false) => {
         const state = get()
         
-        // If we have cached data less than 5 minutes old, don't refetch
-        if (
-          state.workers.length > 0 && 
-          state.lastFetched && 
-          Date.now() - state.lastFetched < 120 * 60 * 1000
-        ) {
+        // Only skip fetch if NOT forcing and we have data
+        // When forceRefresh is true (from Refresh button), always fetch
+        if (!forceRefresh && state.workers.length > 0) {
           return
         }
 
