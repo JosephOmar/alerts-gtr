@@ -43,6 +43,37 @@ import {
   Filter
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Mail } from "lucide-react"
+
+// Function to normalize text (remove accents and convert to lowercase)
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+}
+
+// Function to check if a worker matches a search term flexibly
+function flexibleMatch(workerValue: string | null | undefined, searchTerm: string): boolean {
+  if (!workerValue) return false
+  
+  const normalizedWorker = normalizeText(workerValue)
+  const normalizedSearch = normalizeText(searchTerm)
+  
+  // Direct contains match
+  if (normalizedWorker.includes(normalizedSearch)) return true
+  
+  // Check if all words in search are contained in worker value (in any order)
+  const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length > 0)
+  const workerWords = normalizedWorker.split(/\s+/).filter(w => w.length > 0)
+  
+  // Check if every search word is contained in some worker word
+  const allWordsMatch = searchWords.every(searchWord =>
+    workerWords.some(workerWord => workerWord.includes(searchWord))
+  )
+  
+  return allWordsMatch
+}
 
 const TIME_SLOTS = generateTimeSlots()
 const ITEMS_PER_PAGE = 50
@@ -62,6 +93,7 @@ export function WorkersTable() {
 
   const [currentPage, setCurrentPage] = useState(1)
   const [copied, setCopied] = useState(false)
+  const [copiedEmails, setCopiedEmails] = useState(false)
   const [dateOptions, setDateOptions] = useState<{ value: string; label: string }[]>([])
   const [showTimeSlots, setShowTimeSlots] = useState(false)
 
@@ -96,19 +128,19 @@ export function WorkersTable() {
         return false
       }
 
-      // Search text filter (document, name, or email)
+      // Search text filter (document, name, or email) - with flexible matching
       if (filters.searchText.trim()) {
         const searchTerms = filters.searchText
           .split(/[\n,]+/)
-          .map((s) => s.trim().toLowerCase())
+          .map((s) => s.trim())
           .filter((s) => s.length > 0)
 
         if (searchTerms.length > 0) {
           const matchesAny = searchTerms.some((term) => {
             return (
-              worker.document?.toLowerCase().includes(term) ||
-              worker.name?.toLowerCase().includes(term) ||
-              worker.api_email?.toLowerCase().includes(term)
+              flexibleMatch(worker.document, term) ||
+              flexibleMatch(worker.name, term) ||
+              flexibleMatch(worker.api_email, term)
             )
           })
           if (!matchesAny) return false
@@ -205,6 +237,22 @@ export function WorkersTable() {
     }
   }
 
+  // Copy emails handler
+  const handleCopyEmails = async () => {
+    const emails = filteredWorkers
+      .filter((w) => w.api_email)
+      .map((w) => w.api_email)
+      .join(" ")
+
+    try {
+      await navigator.clipboard.writeText(emails)
+      setCopiedEmails(true)
+      setTimeout(() => setCopiedEmails(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy emails:", err)
+    }
+  }
+
   // Force refresh handler
   const handleRefresh = async () => {
     setLoading(true)
@@ -246,6 +294,15 @@ export function WorkersTable() {
           >
             {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
             {copied ? "Copied!" : "Copy Link"}
+          </Button>
+          <Button
+            onClick={handleCopyEmails}
+            variant="outline"
+            className="border-cyan-500/30 bg-slate-800/50 hover:bg-cyan-500/20 hover:text-cyan-400"
+            disabled={filteredWorkers.length === 0}
+          >
+            {copiedEmails ? <Check className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+            {copiedEmails ? "Copied!" : "Copy Emails"}
           </Button>
           <Button
             onClick={handleRefresh}
