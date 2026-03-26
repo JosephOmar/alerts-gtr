@@ -26,6 +26,9 @@ interface ReportFiltersProps {
   onUpload: () => void
   isLoading: boolean
   uploadLabel?: string
+  // View filter - filters already loaded data by a single interval
+  viewInterval?: string | null
+  setViewInterval?: (interval: string | null) => void
 }
 
 export function ReportFilters({
@@ -44,6 +47,8 @@ export function ReportFilters({
   onUpload,
   isLoading,
   uploadLabel = "Subir CSV",
+  viewInterval,
+  setViewInterval,
 }: ReportFiltersProps) {
   const handleIntervalClick = (interval: string) => {
     // If clicking the same interval that's already selected as start
