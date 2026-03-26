@@ -17,27 +17,37 @@ import {
 const THT_CS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=CS&filter.queue.expertise=live-order%2Cnonlive-order&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 // RS/VS Tier1 - Rider/Vendor Service
 const THT_RSVS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=RS%2CVS&filter.queue.expertise=tier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
-// Tier2 - Case inbox
-const THT_TIER2_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=case-inbox&filter.queue.country=ES&filter.queue.department=CS%2CRS%2CVS&filter.queue.expertise=disputes%2Ctier2&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
+// CS Tier2 - Customer Service Case inbox
+const THT_CS_TIER2_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=case-inbox&filter.queue.country=ES&filter.queue.department=CS&filter.queue.expertise=tier2&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
+// RS Tier2 - Rider Service Case inbox
+const THT_RS_TIER2_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=case-inbox&filter.queue.country=ES&filter.queue.department=RS&filter.queue.expertise=tier2&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
+// VS Tier2 - Vendor Service Case inbox
+const THT_VS_TIER2_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=case-inbox&filter.queue.country=ES&filter.queue.department=VS&filter.queue.expertise=tier2%2Cdisputes&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 
 // Thresholds
 const THT_CS_TIER1_THRESHOLD = 420 // 7 minutes in seconds for CS Tier1
 const THT_RSVS_TIER1_THRESHOLD = 200 // 3 min 20s for RS/VS Tier1
-const THT_TIER2_THRESHOLD = 420 // 7 minutes for Tier2
+const THT_TIER2_THRESHOLD = 420 // 7 minutes for all Tier2
 
-type TierType = 'cs-tier1' | 'rsvs-tier1' | 'tier2'
+type TierType = 'cs-tier1' | 'rsvs-tier1' | 'cs-tier2' | 'rs-tier2' | 'vs-tier2'
 
 export default function THTPage() {
   const { workers, fetchWorkers } = useWorkersStore()
   const [csTier1Loading, setCsTier1Loading] = useState(false)
   const [rsvsTier1Loading, setRsvsTier1Loading] = useState(false)
-  const [tier2Loading, setTier2Loading] = useState(false)
+  const [csTier2Loading, setCsTier2Loading] = useState(false)
+  const [rsTier2Loading, setRsTier2Loading] = useState(false)
+  const [vsTier2Loading, setVsTier2Loading] = useState(false)
   const [csTier1Alerts, setCsTier1Alerts] = useState<THTAlertInfo[]>([])
   const [rsvsTier1Alerts, setRsvsTier1Alerts] = useState<THTAlertInfo[]>([])
-  const [tier2Alerts, setTier2Alerts] = useState<THTAlertInfo[]>([])
+  const [csTier2Alerts, setCsTier2Alerts] = useState<THTAlertInfo[]>([])
+  const [rsTier2Alerts, setRsTier2Alerts] = useState<THTAlertInfo[]>([])
+  const [vsTier2Alerts, setVsTier2Alerts] = useState<THTAlertInfo[]>([])
   const [csTier1Error, setCsTier1Error] = useState<string | null>(null)
   const [rsvsTier1Error, setRsvsTier1Error] = useState<string | null>(null)
-  const [tier2Error, setTier2Error] = useState<string | null>(null)
+  const [csTier2Error, setCsTier2Error] = useState<string | null>(null)
+  const [rsTier2Error, setRsTier2Error] = useState<string | null>(null)
+  const [vsTier2Error, setVsTier2Error] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [tokensConfigured, setTokensConfigured] = useState(false)
 
@@ -52,10 +62,39 @@ export default function THTPage() {
   }, [fetchWorkers])
 
   const fetchTHTData = async (url: string, tierType: TierType) => {
-    const setLoading = tierType === 'cs-tier1' ? setCsTier1Loading : tierType === 'rsvs-tier1' ? setRsvsTier1Loading : setTier2Loading
-    const setAlerts = tierType === 'cs-tier1' ? setCsTier1Alerts : tierType === 'rsvs-tier1' ? setRsvsTier1Alerts : setTier2Alerts
-    const setError = tierType === 'cs-tier1' ? setCsTier1Error : tierType === 'rsvs-tier1' ? setRsvsTier1Error : setTier2Error
-    const threshold = tierType === 'cs-tier1' ? THT_CS_TIER1_THRESHOLD : tierType === 'rsvs-tier1' ? THT_RSVS_TIER1_THRESHOLD : THT_TIER2_THRESHOLD
+    const loadingMap: Record<TierType, React.Dispatch<React.SetStateAction<boolean>>> = {
+      'cs-tier1': setCsTier1Loading,
+      'rsvs-tier1': setRsvsTier1Loading,
+      'cs-tier2': setCsTier2Loading,
+      'rs-tier2': setRsTier2Loading,
+      'vs-tier2': setVsTier2Loading,
+    }
+    const alertsMap: Record<TierType, React.Dispatch<React.SetStateAction<THTAlertInfo[]>>> = {
+      'cs-tier1': setCsTier1Alerts,
+      'rsvs-tier1': setRsvsTier1Alerts,
+      'cs-tier2': setCsTier2Alerts,
+      'rs-tier2': setRsTier2Alerts,
+      'vs-tier2': setVsTier2Alerts,
+    }
+    const errorMap: Record<TierType, React.Dispatch<React.SetStateAction<string | null>>> = {
+      'cs-tier1': setCsTier1Error,
+      'rsvs-tier1': setRsvsTier1Error,
+      'cs-tier2': setCsTier2Error,
+      'rs-tier2': setRsTier2Error,
+      'vs-tier2': setVsTier2Error,
+    }
+    const thresholdMap: Record<TierType, number> = {
+      'cs-tier1': THT_CS_TIER1_THRESHOLD,
+      'rsvs-tier1': THT_RSVS_TIER1_THRESHOLD,
+      'cs-tier2': THT_TIER2_THRESHOLD,
+      'rs-tier2': THT_TIER2_THRESHOLD,
+      'vs-tier2': THT_TIER2_THRESHOLD,
+    }
+    
+    const setLoading = loadingMap[tierType]
+    const setAlerts = alertsMap[tierType]
+    const setError = errorMap[tierType]
+    const threshold = thresholdMap[tierType]
 
     setLoading(true)
     setError(null)
@@ -111,7 +150,9 @@ export default function THTPage() {
 
   const groupedCsTier1Alerts = groupAlertsByTeam(csTier1Alerts)
   const groupedRsvsTier1Alerts = groupAlertsByTeam(rsvsTier1Alerts)
-  const groupedTier2Alerts = groupAlertsByTeam(tier2Alerts)
+  const groupedCsTier2Alerts = groupAlertsByTeam(csTier2Alerts)
+  const groupedRsTier2Alerts = groupAlertsByTeam(rsTier2Alerts)
+  const groupedVsTier2Alerts = groupAlertsByTeam(vsTier2Alerts)
 
   const getTeamColor = (team: string): string => {
     if (team.toLowerCase().includes("customer")) return "from-blue-500/20 to-cyan-500/20 border-blue-500/30"
@@ -233,16 +274,40 @@ export default function THTPage() {
               THT RS/VS Tier1
             </Button>
             <Button
-              onClick={() => fetchTHTData(THT_TIER2_URL, 'tier2')}
-              disabled={tier2Loading || !tokensConfigured}
+              onClick={() => fetchTHTData(THT_CS_TIER2_URL, 'cs-tier2')}
+              disabled={csTier2Loading || !tokensConfigured}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
             >
-              {tier2Loading ? (
+              {csTier2Loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              THT Tier2
+              CS Tier2
+            </Button>
+            <Button
+              onClick={() => fetchTHTData(THT_RS_TIER2_URL, 'rs-tier2')}
+              disabled={rsTier2Loading || !tokensConfigured}
+              className="bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white"
+            >
+              {rsTier2Loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              RS Tier2
+            </Button>
+            <Button
+              onClick={() => fetchTHTData(THT_VS_TIER2_URL, 'vs-tier2')}
+              disabled={vsTier2Loading || !tokensConfigured}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+            >
+              {vsTier2Loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              VS Tier2
             </Button>
           </div>
 
@@ -290,25 +355,69 @@ export default function THTPage() {
             )}
           </div>
 
-          {/* Tier 2 Section */}
+          {/* CS Tier 2 Section */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-purple-400" />
-              Tier 2 - Case Inbox
+              CS Tier 2 - Case Inbox
             </h3>
-            {tier2Error && (
+            {csTier2Error && (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                 <AlertTriangle className="h-4 w-4 text-red-400" />
-                <p className="text-sm text-red-200">{tier2Error}</p>
+                <p className="text-sm text-red-200">{csTier2Error}</p>
               </div>
             )}
-            {tier2Loading ? (
+            {csTier2Loading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
                 <span className="ml-2 text-muted-foreground">Cargando datos...</span>
               </div>
             ) : (
-              renderAlertButtons(tier2Alerts, groupedTier2Alerts)
+              renderAlertButtons(csTier2Alerts, groupedCsTier2Alerts)
+            )}
+          </div>
+
+          {/* RS Tier 2 Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-rose-400" />
+              RS Tier 2 - Case Inbox
+            </h3>
+            {rsTier2Error && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <p className="text-sm text-red-200">{rsTier2Error}</p>
+              </div>
+            )}
+            {rsTier2Loading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
+                <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+              </div>
+            ) : (
+              renderAlertButtons(rsTier2Alerts, groupedRsTier2Alerts)
+            )}
+          </div>
+
+          {/* VS Tier 2 Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-400" />
+              VS Tier 2 - Case Inbox
+            </h3>
+            {vsTier2Error && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <p className="text-sm text-red-200">{vsTier2Error}</p>
+              </div>
+            )}
+            {vsTier2Loading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+                <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+              </div>
+            ) : (
+              renderAlertButtons(vsTier2Alerts, groupedVsTier2Alerts)
             )}
           </div>
 

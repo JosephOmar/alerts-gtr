@@ -11,7 +11,7 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Bell, FileText, Zap, Clock, Timer, Key, Users } from "lucide-react"
+import { LayoutDashboard, Bell, FileText, Zap, Clock, Timer, Key, Users, AlertTriangle, MessageSquare } from "lucide-react"
 
 const alertsLinks = [
   {
@@ -51,10 +51,22 @@ const dashboardLinks = [
 
 const reportsLinks = [
   {
-    title: "Reports",
-    href: "/reports",
-    description: "Generate and view reports",
-    icon: FileText,
+    title: "SLA Breached",
+    href: "/reports/sla-breached",
+    description: "Reporte de chats vencidos",
+    icon: AlertTriangle,
+  },
+  {
+    title: "Contact Reason",
+    href: "/reports/contact-reason",
+    description: "Reporte de razones de contacto",
+    icon: MessageSquare,
+  },
+  {
+    title: "THT High",
+    href: "/reports/tht-high",
+    description: "Reporte de THT elevado",
+    icon: Timer,
   },
 ]
 
@@ -138,7 +150,7 @@ export function Navbar() {
                 Reports
               </NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul className="grid w-[300px] gap-1 p-2">
+                <ul className="grid w-[400px] gap-1 p-2 md:grid-cols-1">
                   {reportsLinks.map((link) => (
                     <ListItem
                       key={link.href}
