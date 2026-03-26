@@ -103,6 +103,6 @@ export function formatAuxiliarAlertText(alert: AuxiliarAlertInfo): string {
 
   return `⚠️ ${agentBold}, presenta exceso en auxiliar no productivo.
 ⏰ ${statusBold} ${alert.timeFormatted} ⏰
-🚨 Su apoyo con el cambio a ONLINE, evitemos afectar la adherencia. 🚨
+🚨 Su apoyo con el cambio a ONLINE, evitemos afectar al adherencia. 🚨
 ${tlBold}: ${supervisorBold}`
 }
