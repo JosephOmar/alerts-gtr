@@ -63,9 +63,11 @@ export default function ContactReasonPage() {
   }, [zone, date, startInterval, endInterval])
 
   // Filter data by selected team
-  const filteredIntervals = data?.intervals.filter(
+  const intervals = Array.isArray(data?.intervals) ? data.intervals : []
+
+  const filteredIntervals = intervals.filter(
     (interval) => selectedTeam === "all" || interval.team === selectedTeam
-  ) || []
+  )
 
   // Flatten all reasons from filtered intervals
   const allReasons: (ContactReason & { team: string; interval: string })[] = filteredIntervals.flatMap(
