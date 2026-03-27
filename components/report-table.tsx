@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+import html2canvas from "html2canvas-pro"
 import {
   Table,
   TableBody,
@@ -54,14 +55,29 @@ export function ReportTable<T extends Record<string, unknown>>({
   }
 
   const handleCopyImage = async () => {
-    if (tableRef.current) {
-      try {
-        await copyElementAsImage(tableRef.current)
-        setCopiedImage(true)
-        setTimeout(() => setCopiedImage(false), 2000)
-      } catch (err) {
-        console.error("Failed to copy image:", err)
+    if (!tableRef.current) return
+
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        useCORS: true,
+        backgroundColor: null, // útil si tienes fondos transparentes
+        scale: 2, // mejora calidad
+      })
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve)
+      )
+
+      if (blob) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ])
       }
+
+      setCopiedImage(true)
+      setTimeout(() => setCopiedImage(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy image:", err)
     }
   }
 

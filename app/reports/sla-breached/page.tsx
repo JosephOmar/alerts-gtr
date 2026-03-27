@@ -42,12 +42,16 @@ export default function SLABreachedPage() {
     setError(null)
 
     try {
+
+      const start = startInterval || undefined
+      const end = endInterval ?? startInterval ?? undefined
+
       const url = buildReportUrl(
         "/reports/sla-breached",
         zone,
         formatDateForApi(date),
-        startInterval || undefined,
-        endInterval || undefined
+        start,
+        end,
       )
 
       const response = await fetch(url)
@@ -109,6 +113,16 @@ export default function SLABreachedPage() {
     await navigator.clipboard.writeText(text)
   }
 
+  const copyLinksToClipboard = async (links: string[]) => {
+    try {
+      const text = links.join("\n") // cada link en nueva línea
+      await navigator.clipboard.writeText(text)
+      console.log("Links copiados")
+    } catch (err) {
+      console.error("Error al copiar:", err)
+    }
+  }
+
   const agentColumns = [
     { key: "name", header: "Agente", sortable: true },
     { key: "supervisor", header: "Supervisor", sortable: true },
@@ -119,24 +133,14 @@ export default function SLABreachedPage() {
       key: "links",
       header: "Links",
       render: (item: SLABreachedAgent & { team: string; interval: string }) => (
-        <div className="flex flex-wrap gap-1">
-          {item.links.slice(0, 3).map((link, i) => (
-            <a
-              key={i}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-cyan-400 hover:underline"
-            >
-              [{i + 1}]
-            </a>
-          ))}
-          {item.links.length > 3 && (
-            <span className="text-xs text-muted-foreground">+{item.links.length - 3}</span>
-          )}
-        </div>
+        <button
+          onClick={() => copyLinksToClipboard(item.links)}
+          className="text-xs bg-cyan-500 hover:bg-cyan-600 text-white px-2 py-1 rounded"
+        >
+          Copiar ({item.links.length})
+        </button>
       ),
-    },
+    }
   ]
 
   const supervisorColumns = [
@@ -149,24 +153,14 @@ export default function SLABreachedPage() {
       key: "links",
       header: "Links",
       render: (item: SLABreachedSupervisor & { team: string; interval: string }) => (
-        <div className="flex flex-wrap gap-1">
-          {item.links.slice(0, 3).map((link, i) => (
-            <a
-              key={i}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-cyan-400 hover:underline"
-            >
-              [{i + 1}]
-            </a>
-          ))}
-          {item.links.length > 3 && (
-            <span className="text-xs text-muted-foreground">+{item.links.length - 3}</span>
-          )}
-        </div>
+        <button
+          onClick={() => copyLinksToClipboard(item.links)}
+          className="text-xs bg-cyan-500 hover:bg-cyan-600 text-white px-2 py-1 rounded"
+        >
+          Copiar ({item.links.length})
+        </button>
       ),
-    },
+    }
   ]
 
   return (
