@@ -39,12 +39,16 @@ export default function ContactReasonPage() {
     setError(null)
 
     try {
+
+      const start = startInterval || undefined
+      const end = endInterval ?? startInterval ?? undefined
+
       const url = buildReportUrl(
         "/reports/contact-reasons",
         zone,
         formatDateForApi(date),
-        startInterval || undefined,
-        endInterval || undefined
+        start,
+        end,
       )
 
       const response = await fetch(url)

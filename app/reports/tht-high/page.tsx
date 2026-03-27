@@ -41,12 +41,16 @@ export default function THTHighPage() {
     setError(null)
 
     try {
+
+      const start = startInterval || undefined
+      const end = endInterval ?? startInterval ?? undefined
+
       const url = buildReportUrl(
         "/reports/tht-high",
         zone,
         formatDateForApi(date),
-        startInterval || undefined,
-        endInterval || undefined
+        start,
+        end,
       )
 
       const response = await fetch(url)
