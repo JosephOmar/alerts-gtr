@@ -13,10 +13,18 @@ import {
   groupAlertsByTeam 
 } from "@/lib/tht-utils"
 
+import { useRef, useCallback } from "react"
+import { toPng } from "html-to-image"
+import { Image} from "lucide-react"
+
+
+
 // CS Tier1 - Customer Service (live-order, nonlive-order)
 const THT_CS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=CS&filter.queue.expertise=live-order%2Cnonlive-order&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 // RS/VS Tier1 - Rider/Vendor Service
-const THT_RSVS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=RS%2CVS&filter.queue.expertise=tier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
+const THT_RS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=RS&filter.queue.expertise=tier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
+// RS/VS Tier1 - Rider/Vendor Service
+const THT_VS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=VS&filter.queue.expertise=tier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 // CS Tier2 - Customer Service Case inbox
 const THT_CS_TIER2_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=case-inbox&filter.queue.country=ES&filter.queue.department=CS&filter.queue.expertise=tier2&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 // RS Tier2 - Rider Service Case inbox
@@ -26,30 +34,37 @@ const THT_VS_TIER2_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/acti
 
 // Thresholds
 const THT_CS_TIER1_THRESHOLD = 420 // 7 minutes in seconds for CS Tier1
-const THT_RSVS_TIER1_THRESHOLD = 200 // 3 min 20s for RS/VS Tier1
+const THT_RS_TIER1_THRESHOLD = 200 // 3 min 20s for RS/VS Tier1
+const THT_VS_TIER1_THRESHOLD = 200 // 3 min 20s for RS/VS Tier1
 const THT_TIER2_THRESHOLD = 420 // 7 minutes for all Tier2
 
-type TierType = 'cs-tier1' | 'rsvs-tier1' | 'cs-tier2' | 'rs-tier2' | 'vs-tier2'
+type TierType = 'cs-tier1' | 'rs-tier1' | 'vs-tier1' | 'cs-tier2' | 'rs-tier2' | 'vs-tier2'
+type CopiedButton = "Customer Tier1" | null
 
 export default function THTPage() {
   const { workers, fetchWorkers } = useWorkersStore()
   const [csTier1Loading, setCsTier1Loading] = useState(false)
-  const [rsvsTier1Loading, setRsvsTier1Loading] = useState(false)
+  const [rsTier1Loading, setRsTier1Loading] = useState(false)
+  const [vsTier1Loading, setVsTier1Loading] = useState(false)
   const [csTier2Loading, setCsTier2Loading] = useState(false)
   const [rsTier2Loading, setRsTier2Loading] = useState(false)
   const [vsTier2Loading, setVsTier2Loading] = useState(false)
   const [csTier1Alerts, setCsTier1Alerts] = useState<THTAlertInfo[]>([])
-  const [rsvsTier1Alerts, setRsvsTier1Alerts] = useState<THTAlertInfo[]>([])
+  const [rsTier1Alerts, setRsTier1Alerts] = useState<THTAlertInfo[]>([])
+  const [vsTier1Alerts, setVsTier1Alerts] = useState<THTAlertInfo[]>([])
   const [csTier2Alerts, setCsTier2Alerts] = useState<THTAlertInfo[]>([])
   const [rsTier2Alerts, setRsTier2Alerts] = useState<THTAlertInfo[]>([])
   const [vsTier2Alerts, setVsTier2Alerts] = useState<THTAlertInfo[]>([])
   const [csTier1Error, setCsTier1Error] = useState<string | null>(null)
-  const [rsvsTier1Error, setRsvsTier1Error] = useState<string | null>(null)
+  const [rsTier1Error, setRsTier1Error] = useState<string | null>(null)
+  const [vsTier1Error, setVsTier1Error] = useState<string | null>(null)
   const [csTier2Error, setCsTier2Error] = useState<string | null>(null)
   const [rsTier2Error, setRsTier2Error] = useState<string | null>(null)
   const [vsTier2Error, setVsTier2Error] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [tokensConfigured, setTokensConfigured] = useState(false)
+  const tableRef = useRef<HTMLDivElement>(null)
+  const [copiedButton, setCopiedButton] = useState<CopiedButton>(null)
 
   useEffect(() => {
     // Fetch workers on mount
@@ -64,28 +79,32 @@ export default function THTPage() {
   const fetchTHTData = async (url: string, tierType: TierType) => {
     const loadingMap: Record<TierType, React.Dispatch<React.SetStateAction<boolean>>> = {
       'cs-tier1': setCsTier1Loading,
-      'rsvs-tier1': setRsvsTier1Loading,
+      'rs-tier1': setRsTier1Loading,
+      'vs-tier1': setVsTier1Loading,
       'cs-tier2': setCsTier2Loading,
       'rs-tier2': setRsTier2Loading,
       'vs-tier2': setVsTier2Loading,
     }
     const alertsMap: Record<TierType, React.Dispatch<React.SetStateAction<THTAlertInfo[]>>> = {
       'cs-tier1': setCsTier1Alerts,
-      'rsvs-tier1': setRsvsTier1Alerts,
+      'rs-tier1': setRsTier1Alerts,
+      'vs-tier1': setVsTier1Alerts,
       'cs-tier2': setCsTier2Alerts,
       'rs-tier2': setRsTier2Alerts,
       'vs-tier2': setVsTier2Alerts,
     }
     const errorMap: Record<TierType, React.Dispatch<React.SetStateAction<string | null>>> = {
       'cs-tier1': setCsTier1Error,
-      'rsvs-tier1': setRsvsTier1Error,
+      'rs-tier1': setRsTier1Error,
+      'vs-tier1': setVsTier1Error,
       'cs-tier2': setCsTier2Error,
       'rs-tier2': setRsTier2Error,
       'vs-tier2': setVsTier2Error,
     }
     const thresholdMap: Record<TierType, number> = {
       'cs-tier1': THT_CS_TIER1_THRESHOLD,
-      'rsvs-tier1': THT_RSVS_TIER1_THRESHOLD,
+      'rs-tier1': THT_RS_TIER1_THRESHOLD,
+      'vs-tier1': THT_VS_TIER1_THRESHOLD,
       'cs-tier2': THT_TIER2_THRESHOLD,
       'rs-tier2': THT_TIER2_THRESHOLD,
       'vs-tier2': THT_TIER2_THRESHOLD,
@@ -149,7 +168,8 @@ export default function THTPage() {
   }
 
   const groupedCsTier1Alerts = groupAlertsByTeam(csTier1Alerts)
-  const groupedRsvsTier1Alerts = groupAlertsByTeam(rsvsTier1Alerts)
+  const groupedRsTier1Alerts = groupAlertsByTeam(rsTier1Alerts)
+  const groupedVsTier1Alerts = groupAlertsByTeam(vsTier1Alerts)
   const groupedCsTier2Alerts = groupAlertsByTeam(csTier2Alerts)
   const groupedRsTier2Alerts = groupAlertsByTeam(rsTier2Alerts)
   const groupedVsTier2Alerts = groupAlertsByTeam(vsTier2Alerts)
@@ -218,6 +238,138 @@ export default function THTPage() {
     )
   }
 
+const getTenureLabel = (tenure: number) => {
+  if (tenure === 0) return { label: "Menos de 1 mes", color: "text-red-400" }
+  if (tenure >= 1 && tenure <= 3) return { label: "De 1 a 3 meses", color: "text-orange-400" }
+  if (tenure > 3 && tenure <= 6) return { label: "De 3 a 6 meses", color: "text-yellow-400" }
+  return { label: "Más de 6 meses", color: "text-green-400" }
+}
+
+const getHandlingTimeColor = (seconds: number) => {
+  if (seconds > 1200) return "text-red-400 font-semibold"
+  if (seconds >= 420) return "text-orange-400"
+  return "text-muted-foreground"
+}
+
+// Convierte "00:12:30" → minutos
+const parseHandlingTimeToMinutes = (time: string) => {
+  const [h, m, s] = time.split(":").map(Number)
+  return h * 60 + m + s / 60
+}
+
+const copyAsImage = useCallback(async () => {
+    if (!tableRef.current) return
+
+    try {
+      const dataUrl = await toPng(tableRef.current, {
+        backgroundColor: "#1a1a2e",
+        pixelRatio: 2,
+      })
+
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": blob,
+        }),
+      ])
+      setCopiedButton("Customer Tier1")
+      setTimeout(() => setCopiedButton(null), 2000)
+    } catch (error) {
+      console.error("Error copying image:", error)
+    }
+  }, [])
+
+const renderAlertTable = (
+  alerts: THTAlertInfo[],
+  groupedAlerts: Record<string, THTAlertInfo[]>
+) => {
+  if (alerts.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-6 border border-dashed border-slate-700 rounded-lg">
+        <p className="text-muted-foreground text-sm">
+          No hay alertas con THT elevado
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(groupedAlerts).map(([team, teamAlerts]) => (
+        <div key={team} className="space-y-2">
+          {/* Header equipo */}
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-cyan-400" />
+            <span className="text-sm font-medium text-cyan-400">{team}</span>
+            <span className="text-xs text-muted-foreground">
+              ({teamAlerts.length} alertas)
+            </span>
+            <Button
+              onClick={copyAsImage}
+              variant="outline"
+              className="border-blue-500/50 bg-slate-900/50 hover:bg-blue-500/20 hover:border-blue-400 text-blue-300 transition-all duration-300 disabled:opacity-50"
+            >
+              {copiedButton === "Customer Tier1" ? (
+                <Check className="w-4 h-4 mr-2 text-emerald-400" />
+              ) : (
+                <Image className="w-4 h-4 mr-2" />
+              )}
+              {copiedButton === "Customer Tier1" ? "Copied!" : "Copy Table"}
+            </Button>
+          </div>
+
+          {/* Tabla */}
+          <div className="overflow-x-auto rounded-lg border border-slate-700" ref={tableRef}>
+            <table className="w-full text-sm">
+              <thead className={`bg-gradient-to-r ${getTeamColor(team)} text-left`}>
+                <tr>
+                  <th className="px-4 py-2">Nombre</th>
+                  <th className="px-4 py-2">Supervisor</th>
+                  <th className="px-4 py-2">Antigüedad</th>
+                  <th className="px-4 py-2">Handling Time</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {teamAlerts.map((alert) => {
+                  const tenureInfo = getTenureLabel(alert.tenure)
+                  const handlingColor = getHandlingTimeColor(alert.handlingTimeSeconds)
+
+                  return (
+                    <tr
+                      key={alert.ticketId}
+                      className="border-t border-slate-800 hover:bg-slate-900/50 cursor-pointer"
+                      onClick={() => handleCopyAlert(alert)}
+                    >
+                      <td className="px-4 py-2 font-medium text-foreground">
+                        {alert.agentName}
+                      </td>
+
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {alert.supervisor || "N/A"}
+                      </td>
+
+                      <td className={`px-4 py-2 ${tenureInfo.color}`}>
+                        {tenureInfo.label}
+                      </td>
+
+                      <td className={`px-4 py-2 ${handlingColor}`}>
+                        {alert.handlingTimeFormatted}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
   return (
     <div className="relative z-10 p-8 max-w-6xl mx-auto">
       <Card className="border-cyan-500/20 bg-slate-900/50 backdrop-blur-sm">
@@ -262,16 +414,28 @@ export default function THTPage() {
               THT CS Tier1
             </Button>
             <Button
-              onClick={() => fetchTHTData(THT_RSVS_TIER1_URL, 'rsvs-tier1')}
-              disabled={rsvsTier1Loading || !tokensConfigured}
+              onClick={() => fetchTHTData(THT_RS_TIER1_URL, 'rs-tier1')}
+              disabled={rsTier1Loading || !tokensConfigured}
               className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
             >
-              {rsvsTier1Loading ? (
+              {rsTier1Loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              THT RS/VS Tier1
+              THT RS Tier1
+            </Button>
+            <Button
+              onClick={() => fetchTHTData(THT_VS_TIER1_URL, 'vs-tier1')}
+              disabled={vsTier1Loading || !tokensConfigured}
+              className="bg-gradient-to-r from-purple-500 to-purple-500 hover:from-purple-600 hover:to-purple-600 text-white"
+            >
+              {vsTier1Loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              THT VS Tier1
             </Button>
             <Button
               onClick={() => fetchTHTData(THT_CS_TIER2_URL, 'cs-tier2')}
@@ -329,29 +493,51 @@ export default function THTPage() {
                 <span className="ml-2 text-muted-foreground">Cargando datos...</span>
               </div>
             ) : (
-              renderAlertButtons(csTier1Alerts, groupedCsTier1Alerts)
+              renderAlertTable(csTier1Alerts, groupedCsTier1Alerts)
+            )}
+          </div>
+
+          {/* RS Tier 1 Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-orange-400" />
+              RS Tier 1 - Chat (THT mayor a 3 min 20s)
+            </h3>
+            {rsTier1Error && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <p className="text-sm text-red-200">{rsTier1Error}</p>
+              </div>
+            )}
+            {rsTier1Loading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-orange-400" />
+                <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+              </div>
+            ) : (
+              renderAlertButtons(rsTier1Alerts, groupedRsTier1Alerts)
             )}
           </div>
 
           {/* RS/VS Tier 1 Section */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-orange-400" />
-              RS/VS Tier 1 - Chat (THT mayor a 3 min 20s)
+              <div className="h-2 w-2 rounded-full bg-purple-400" />
+              VS Tier 1 - Chat (THT mayor a 3 min 20s)
             </h3>
-            {rsvsTier1Error && (
+            {vsTier1Error && (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                 <AlertTriangle className="h-4 w-4 text-red-400" />
-                <p className="text-sm text-red-200">{rsvsTier1Error}</p>
+                <p className="text-sm text-red-200">{vsTier1Error}</p>
               </div>
             )}
-            {rsvsTier1Loading ? (
+            {vsTier1Loading ? (
               <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-orange-400" />
+                <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
                 <span className="ml-2 text-muted-foreground">Cargando datos...</span>
               </div>
             ) : (
-              renderAlertButtons(rsvsTier1Alerts, groupedRsvsTier1Alerts)
+              renderAlertButtons(vsTier1Alerts, groupedVsTier1Alerts)
             )}
           </div>
 

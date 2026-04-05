@@ -40,6 +40,8 @@ export interface ChannelCapacityInfo {
   liveAgents: number
   totalTickets: number
   nonLiveTickets: number
+  nonLiveBacklog: number
+  liveBacklog: number
   liveTickets: number
   concurrency: number
   thtNonLive: string
@@ -53,6 +55,7 @@ export interface SimpleTier1Info {
   name: string
   onlineAgents: number
   tickets: number
+  backlog: number
   concurrency: number
   tht: string
   thtSeconds: number
@@ -108,6 +111,7 @@ export interface THTAlertInfo {
   company: string
   handlingTimeSeconds: number
   handlingTimeFormatted: string
+  tenure: number
   caseLink: string
   supervisor: string | null
   workerFound: boolean

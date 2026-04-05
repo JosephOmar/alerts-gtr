@@ -1,4 +1,5 @@
 import type { QueueData, TableRow, ChannelCapacityInfo, SimpleTier1Info, Tier2BacklogInfo } from "./types"
+import { toBoldUnicode } from "./tht-utils"
 
 export function processQueueData(data: QueueData[]): TableRow[] {
   const channelMap: Record<string, TableRow> = {}
@@ -106,18 +107,21 @@ export function secondsToMinutesSeconds(seconds: number): string {
 // Max concurrency is 1.5, or 1 if less than 10 agents
 // Available = agents - (tickets / maxConcurrency)
 // Capped at 20
-export function calculateAvailableAgents(agents: number, tickets: number): number {
+export function calculateAvailableAgents(agents: number, tickets: number, name: string): number {
   if (agents === 0) return 0
   
-  const maxConcurrency = agents < 10 ? 1 : 1.5
-  // Agents available = how many can leave while maintaining max concurrency
-  // tickets / (agents - available) <= maxConcurrency
-  // tickets <= maxConcurrency * (agents - available)
-  // available <= agents - (tickets / maxConcurrency)
+  let maxConcurrency = 0
+
+  name === "Customer Tier1" ? maxConcurrency = (agents < 10 ? 1 : 1.5) : maxConcurrency = (agents < 10 ? 1.5 : 2)
+
   const minAgentsNeeded = Math.ceil(tickets / maxConcurrency)
   const available = Math.max(0, agents - minAgentsNeeded)
   
-  return Math.min(available, 20)
+  if (tickets/agents < 0.5) {
+    return Math.min(20, Math.floor(agents/2))
+  } else {
+    return Math.min(available, 20)
+  }
 }
 
 // Get Customer Tier1 capacity info
@@ -137,7 +141,10 @@ export function getCustomerTier1Info(data: QueueData[]): ChannelCapacityInfo {
   const liveTickets = liveItem?.activeTicketsCount || 0
   const totalTickets = nonLiveTickets + liveTickets
 
-  const concurrency = totalAgents > 0 ? totalTickets / totalAgents : 0
+  const nonLiveBacklog = nonLiveItem?.casesBacklog || 0
+  const liveBacklog = liveItem?.casesBacklog || 0
+
+  const concurrency = Math.min(totalAgents > 0 ? totalTickets / totalAgents : 0, 2)
 
   const thtNonLiveSeconds = nonLiveItem?.avgHandlingTime || 0
   const thtLiveSeconds = liveItem?.avgHandlingTime || 0
@@ -150,12 +157,14 @@ export function getCustomerTier1Info(data: QueueData[]): ChannelCapacityInfo {
     totalTickets,
     nonLiveTickets,
     liveTickets,
+    nonLiveBacklog,
+    liveBacklog,
     concurrency: Math.round(concurrency * 10) / 10,
     thtNonLive: secondsToMinutesSeconds(thtNonLiveSeconds),
     thtLive: secondsToMinutesSeconds(thtLiveSeconds),
     thtNonLiveSeconds,
     thtLiveSeconds,
-    availableAgents: calculateAvailableAgents(totalAgents, totalTickets),
+    availableAgents: calculateAvailableAgents(totalAgents, totalTickets, "Customer Tier1"),
   }
 }
 
@@ -165,19 +174,21 @@ export function getRiderTier1Info(data: QueueData[]): SimpleTier1Info {
     (item) => item.queueName === "RS-chat-spa-ES-tier1"
   )
 
+  const backlog = item?.casesBacklog || 0
   const onlineAgents = item?.onlineAgentCount || 0
   const tickets = item?.activeTicketsCount || 0
-  const concurrency = onlineAgents > 0 ? tickets / onlineAgents : 0
+  const concurrency = Math.min(onlineAgents > 0 ? tickets / onlineAgents : 0, 3)
   const thtSeconds = item?.avgHandlingTime || 0
 
   return {
     name: "Rider Tier1",
     onlineAgents,
     tickets,
+    backlog,
     concurrency: Math.round(concurrency * 10) / 10,
     tht: secondsToMinutesSeconds(thtSeconds),
     thtSeconds,
-    availableAgents: calculateAvailableAgents(onlineAgents, tickets),
+    availableAgents: calculateAvailableAgents(onlineAgents, tickets, "Rider Tier1"),
   }
 }
 
@@ -187,19 +198,21 @@ export function getVendorTier1Info(data: QueueData[]): SimpleTier1Info {
     (item) => item.queueName === "VS-chat-spa-ES-tier1"
   )
 
+  const backlog = item?.casesBacklog || 0
   const onlineAgents = item?.onlineAgentCount || 0
   const tickets = item?.activeTicketsCount || 0
-  const concurrency = onlineAgents > 0 ? tickets / onlineAgents : 0
+  const concurrency = Math.min(onlineAgents > 0 ? tickets / onlineAgents : 0, 3)
   const thtSeconds = item?.avgHandlingTime || 0
 
   return {
     name: "Vendor Tier1",
     onlineAgents,
     tickets,
+    backlog,
     concurrency: Math.round(concurrency * 10) / 10,
     tht: secondsToMinutesSeconds(thtSeconds),
     thtSeconds,
-    availableAgents: calculateAvailableAgents(onlineAgents, tickets),
+    availableAgents: calculateAvailableAgents(onlineAgents, tickets, "Vendor Tier1"),
   }
 }
 
@@ -247,17 +260,21 @@ export function getTier2BacklogInfo(data: QueueData[]): Tier2BacklogInfo {
 
 // Format Customer Tier1 text for clipboard
 export function formatCustomerTier1Text(info: ChannelCapacityInfo): string {
+
+  const isThereBacklogNonLive = info.nonLiveBacklog > 2 ? `\n\n🚨 Se tiene ${info.nonLiveBacklog} chats en espera en la bandeja de No Live 🚨` : ''
+  const isThereBacklogLive = info.liveBacklog > 2 ? `\n\n🚨 Se tiene ${info.liveBacklog} chats en espera en la bandeja de Live 🚨` : ''
+  const textBacklog = info.nonLiveBacklog > 2 || info.liveBacklog > 2 ? `${isThereBacklogNonLive}` + `${isThereBacklogLive}` + `\n\n🚨🚨Su apoyo agilizando los tiempos de atención, evitemos afectar el SLA🚨🚨` : ''
   const availableText = info.availableAgents > 0 
     ? `${info.availableAgents} para refuerzo`
     : "Sin agentes disponibles"
 
-  return `Capacidad: Customer Tier1\t
+  return `${toBoldUnicode('Capacidad: Customer Tier1')}\t
 \t
-Total de Agentes: ${info.totalAgents} Agentes.\t
+Total de Agentes: ${info.totalAgents} Agentes.\n
      • Agentes Control: ${info.controlAgents} Agentes.\t
-     •  Agentes Live: ${info.liveAgents} Agentes.\t
+     • Agentes Live: ${info.liveAgents} Agentes.\t
 \t
-Tickets: ${info.totalTickets} Tickets en gestión\t
+Tickets: ${info.totalTickets} Tickets en gestión\n
      • Tickets No Live: ${info.nonLiveTickets} Contact\t
      • Tickets Live: ${info.liveTickets} Contact\t
 \t
@@ -266,41 +283,43 @@ Tickets: ${info.totalTickets} Tickets en gestión\t
 \t
 Concurrencia: ${info.concurrency}\t
 \t
-Ag. Disponibles: ${availableText}`
+👥 Ag. Disponibles: ${availableText} ${textBacklog}`
 }
 
 // Format Rider Tier1 text for clipboard
 export function formatRiderTier1Text(info: SimpleTier1Info): string {
+  const isThereBacklog = info.backlog > 2 ? `\n\n🚨 Se tiene ${info.backlog} chats en espera en la bandeja🚨\n\n🚨🚨Su apoyo agilizando los tiempos de atención, evitemos afectar el SLA🚨🚨` : ''
   const availableText = info.availableAgents > 0 
     ? `${info.availableAgents} Agentes para refuerzo`
     : "Sin agentes disponibles"
 
-  return `Capacidad: Rider Tier1\t\t\t
+  return `${toBoldUnicode('Capacidad: Rider Tier1')}\t\t\t
 \t\t\t
-🎯 Agentes Online: ${info.onlineAgents} Agentes.\t\t\t
-↪ Tickets: ${info.tickets} Tickets en gestión\t\t\t
-↪ Concurrencia: ${info.concurrency}\t\t\t
+🎯 Agentes Online: ${info.onlineAgents} Agentes.\n
+    • Tickets: ${info.tickets} Tickets en gestión\t\t\t
+    • Concurrencia: ${info.concurrency}\t\t\t
 \t\t\t
 ➡️ THT: ${info.tht}  -  (Target: 03:22)\t\t\t
 \t\t\t
- 👥 Ag. Disponibles: ${availableText}`
+👥 Ag. Disponibles: ${availableText} ${isThereBacklog}`
 }
 
 // Format Vendor Tier1 text for clipboard
 export function formatVendorTier1Text(info: SimpleTier1Info): string {
+  const isThereBacklog = info.backlog > 2 ? `\n\n🚨 Se tiene ${info.backlog} chats en espera en la bandeja🚨\n\n🚨🚨Su apoyo agilizando los tiempos de atención, evitemos afectar el SLA🚨🚨` : ''
   const availableText = info.availableAgents > 0 
     ? `${info.availableAgents} Agentes para refuerzo`
     : "Sin agentes disponibles"
 
-  return `Capacidad: Vendor Tier1\t\t\t
+  return `${toBoldUnicode('Capacidad: Vendor Tier1')}\t\t\t
 \t\t\t
-🎯 Agentes Online: ${info.onlineAgents} Agentes.\t\t\t
-↪ Tickets: ${info.tickets} Tickets en gestión\t\t\t
-↪ Concurrencia: ${info.concurrency}\t\t\t
+🎯 Agentes Online: ${info.onlineAgents} Agentes.\n
+    • Tickets: ${info.tickets} Tickets en gestión\t\t\t
+    • Concurrencia: ${info.concurrency}\t\t\t
 \t\t\t
 ➡️ THT: ${info.tht}  -  (Target: 03:22)\t\t\t
 \t\t\t
- 👥 Ag. Disponibles: ${availableText}`
+👥 Ag. Disponibles: ${availableText}  ${isThereBacklog}`
 }
 
 // Format Disponibilidad text for clipboard
