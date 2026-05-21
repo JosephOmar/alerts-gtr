@@ -20,7 +20,7 @@ import { Image} from "lucide-react"
 
 
 // CS Tier1 - Customer Service (live-order, nonlive-order)
-const THT_CS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=CS%2CRS%2CVS&filter.queue.expertise=live-order%2Ctier1%2Cpostorder-tier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
+const THT_CS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=CS%2CRS%2CVS&filter.queue.expertise=live-order%2Cnonlive-order%2Ctier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 // RS/VS Tier1 - Rider/Vendor Service
 const THT_RS_TIER1_URL = "https://api-glovo-eu.deliveryherocare.com/oneview/active-cases/v3/tickets?filter.chatStatus=Active&filter.queue.channel=chat&filter.queue.country=ES&filter.queue.department=RS&filter.queue.expertise=tier1&orderBy=handling_time&direction=desc&cursor=%7B%22currentPage%22%3A%22%22%2C%22nextPage%22%3A%22%22%2C%22previousPages%22%3A%5B%5D%7D&pageSize=25"
 // RS/VS Tier1 - Rider/Vendor Service
