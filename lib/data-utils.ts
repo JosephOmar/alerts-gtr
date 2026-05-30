@@ -65,9 +65,9 @@ export function processQueueData(data: QueueData[]): TableRow[] {
       channelMap[channelName].head += item.onlineAgentCount
     }
 
-    if (channelName == "Vendor Tier2") {
-      channelMap[channelName].backlog += (3094/2)
-    }
+    // if (channelName == "Vendor Tier2") {
+    //   channelMap[channelName].backlog += (3094/2)
+    // }
   })
 
   // Order the channels
@@ -265,6 +265,7 @@ export function getTier2BacklogInfo(data: QueueData[]): Tier2BacklogInfo {
     },
     disputes: {
       cases: disputesItem?.casesBacklog || 0,
+      hoursToSLA: calculateHoursToSLA(disputesItem?.longestWaitTime || 0),
     },
   }
 }
@@ -362,6 +363,8 @@ export function formatBacklogText(info: Tier2BacklogInfo): string {
   info.rider.hoursToSLA <= 0 ? textRider = 'SLA Vencido 🚨🚨' : textRider = `con ${info.rider.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
   let textVendor = ''
   info.vendor.hoursToSLA <= 0 ? textVendor = 'SLA Vencido 🚨🚨' : textVendor = `con ${info.vendor.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
+  let textDisputes = ''
+  info.vendor.hoursToSLA <= 0 ? textDisputes = 'SLA Vencido 🚨🚨' : textDisputes = `con ${info.disputes.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
   const disputesText = '13094'
   // const disputesText = info.disputes.cases > 10000 
   //   ? "+10000 casos" 
@@ -371,5 +374,5 @@ export function formatBacklogText(info: Tier2BacklogInfo): string {
 ↪ Customer: ${info.customer.cases} casos - ${textCustomer}
 ↪ Rider: ${info.rider.cases} casos - ${textRider}
 ↪ Vendor: ${info.vendor.cases} casos - ${textVendor}
-↪ Disputes: ${disputesText} casos - SLA Vencido 🚨🚨`
+↪ Disputes: ${info.disputes.cases} casos - ${textVendor}`
 }

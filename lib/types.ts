@@ -77,6 +77,7 @@ export interface Tier2BacklogInfo {
   }
   disputes: {
     cases: number
+    hoursToSLA: number
   }
 }
 
