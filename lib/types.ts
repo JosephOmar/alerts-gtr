@@ -43,7 +43,8 @@ export interface ChannelCapacityInfo {
   nonLiveBacklog: number
   liveBacklog: number
   liveTickets: number
-  concurrency: number
+  concurrencyLive: number
+  concurrencyControl: number
   thtNonLive: string
   thtLive: string
   thtNonLiveSeconds: number

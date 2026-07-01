@@ -10,7 +10,7 @@ export function processQueueData(data: QueueData[]): TableRow[] {
     const channel = item.channel
 
     // Customer mappings
-    if (dept === "CS" && (expertise === "live-order" || expertise === "postorder-tier1" || expertise === "nonlive-order") && channel === "chat") {
+    if (dept === "CS" && (expertise === "live-order" || expertise === "nonlive-order") && channel === "chat") {
       console.log(expertise)
       return "Customer Tier1"
     }
@@ -155,7 +155,8 @@ export function getCustomerTier1Info(data: QueueData[]): ChannelCapacityInfo {
   const nonLiveBacklog = nonLiveItem?.casesBacklog || 0
   const liveBacklog = liveItem?.casesBacklog || 0
 
-  const concurrency = Math.min(totalAgents > 0 ? totalTickets / totalAgents : 0, 2)
+  const concurrencyLive = Math.min(liveAgents > 0 ? liveTickets / liveAgents : 0, 2)
+  const concurrencyControl = Math.min(controlAgents > 0 ? nonLiveTickets / controlAgents : 0, 2)
 
   const thtNonLiveSeconds = nonLiveItem?.avgHandlingTime || 0
   const thtLiveSeconds = liveItem?.avgHandlingTime || 0
@@ -170,7 +171,8 @@ export function getCustomerTier1Info(data: QueueData[]): ChannelCapacityInfo {
     liveTickets,
     nonLiveBacklog,
     liveBacklog,
-    concurrency: Math.round(concurrency * 10) / 10,
+    concurrencyLive: Math.round(concurrencyLive * 10) / 10,
+    concurrencyControl: Math.round(concurrencyControl * 10) / 10,
     thtNonLive: secondsToMinutesSeconds(thtNonLiveSeconds),
     thtLive: secondsToMinutesSeconds(thtLiveSeconds),
     thtNonLiveSeconds,
@@ -293,7 +295,8 @@ Tickets: ${info.totalTickets} Tickets en gestión\n
 ➡️ THT NON LIVE:  ${info.thtNonLive}  -  (Target: 07:03)\t
 ➡️ THT LIVE:  ${info.thtLive}  -  (Target: 07:03)\t
 \t
-Concurrencia: ${info.concurrency}\t
+Concurrencia Control: ${info.concurrencyControl}\t
+Concurrencia Live: ${info.concurrencyLive}\t
 \t
 👥 Ag. Disponibles: ${availableText} ${textBacklog}`
 }
@@ -347,7 +350,7 @@ export function formatDisponibilidadText(
     return `➡️ ${name} - Concurrencia: ${concurrency}. Se tiene disponibilidad para sacar ${available} agentes para refuerzos.`
   }
 
-  return `${formatLine("Customer Tier1", customerInfo.concurrency, customerInfo.availableAgents)}
+  return `${formatLine("Customer Tier1", customerInfo.concurrencyControl, customerInfo.availableAgents)}
 ${formatLine("Rider Tier1", riderInfo.concurrency, riderInfo.availableAgents)}
 ${formatLine("Vendor Chat", vendorInfo.concurrency, vendorInfo.availableAgents)}
  
@@ -374,5 +377,5 @@ export function formatBacklogText(info: Tier2BacklogInfo): string {
 ↪ Customer: ${info.customer.cases} casos - ${textCustomer}
 ↪ Rider: ${info.rider.cases} casos - ${textRider}
 ↪ Vendor: ${info.vendor.cases} casos - ${textVendor}
-↪ Disputes: ${info.disputes.cases} casos - ${textVendor}`
+↪ Disputes: ${info.disputes.cases} casos - ${textDisputes}`
 }
