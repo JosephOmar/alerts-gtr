@@ -10,7 +10,7 @@ import type {
 
 // Get API base URL from environment
 export function getReportsApiUrl(): string {
-  return process.env.NEXT_PUBLIC_REPORTS_API_URL || "https://etl-workers.onrender.com"
+  return process.env.NEXT_PUBLIC_REPORTS_API_URL || "http://localhost:8001"
 }
 
 // Build report URL with filters

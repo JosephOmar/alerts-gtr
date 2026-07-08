@@ -80,7 +80,7 @@ export const useWorkersStore = create<WorkersState>()(
         set({ isLoading: true, error: null })
 
         try {
-          const response = await fetch("https://etl-workers.onrender.com/workers/")
+          const response = await fetch("http://localhost:8001/workers/")
           
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)

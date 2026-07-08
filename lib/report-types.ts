@@ -11,6 +11,21 @@ export interface ReportMeta {
   mode?: "range" | "interval"
 }
 
+export interface ReportMetaSlaBreached {
+  zone: string
+  date: string
+
+  intervals: number
+  cases: number
+
+  total_breached: number
+  total_agents: number
+  total_supervisors: number
+
+  start_interval: string | null
+  end_interval: string | null
+}
+
 // SLA Breached Types
 export interface SLABreachedAgent {
   api_email: string
@@ -28,15 +43,24 @@ export interface SLABreachedSupervisor {
 }
 
 export interface SLABreachedInterval {
-  interval: string
   team: string
+
+  date_es: string
+  interval_es: string
+
+  date_pe: string
+  interval_pe: string
+
   total_breached: number
+  total_agents: number
+  total_supervisors: number
+
   agents: SLABreachedAgent[]
   supervisors: SLABreachedSupervisor[]
 }
 
 export interface SLABreachedResponse {
-  meta: ReportMeta
+  meta: ReportMetaSlaBreached
   intervals: SLABreachedInterval[]
 }
 

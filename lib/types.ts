@@ -67,19 +67,22 @@ export interface Tier2BacklogInfo {
   customer: {
     cases: number
     hoursToSLA: number
+    agents: number
   }
   rider: {
     cases: number
     hoursToSLA: number
+    agents: number
   }
   vendor: {
     cases: number
     hoursToSLA: number
+    agents: number
   }
-  disputes: {
-    cases: number
-    hoursToSLA: number
-  }
+  // disputes: {
+  //   cases: number
+  //   hoursToSLA: number
+  // }
 }
 
 // THT Ticket types

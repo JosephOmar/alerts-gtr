@@ -1,50 +1,68 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, Loader2 } from "lucide-react"
-import { ReportFilters } from "@/components/report-filters"
-import { ReportTable } from "@/components/report-table"
-import { CsvUploadModal } from "@/components/csv-upload-modal"
+import { useState, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { ReportFilters } from "@/components/report-filters";
+import { ReportTable } from "@/components/report-table";
+import { CsvUploadModal } from "@/components/csv-upload-modal";
+
 import {
   type SLABreachedResponse,
   type SLABreachedAgent,
   type SLABreachedSupervisor,
   SLA_BREACHED_TEAMS,
   type Zone,
-} from "@/lib/report-types"
+} from "@/lib/report-types";
+
 import {
   buildReportUrl,
   formatDateForApi,
-  getTodayFormatted,
   formatSLAAgentsAlertText,
   formatSLASupervisorsAlertText,
-} from "@/lib/report-utils"
+} from "@/lib/report-utils";
 
 export default function SLABreachedPage() {
-  // Filter states
-  const [zone, setZone] = useState<Zone>("PE")
-  const [date, setDate] = useState<Date>(new Date())
-  const [startInterval, setStartInterval] = useState<string | null>(null)
-  const [endInterval, setEndInterval] = useState<string | null>(null)
-  const [selectedTeam, setSelectedTeam] = useState<string>("all")
-  
-  // Data states
-  const [data, setData] = useState<SLABreachedResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  
-  // Modal state
-  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  // -----------------------------
+  // Filters
+  // -----------------------------
+  const [zone, setZone] = useState<Zone>("PE");
+  const [date, setDate] = useState<Date>(new Date());
 
+  const [startInterval, setStartInterval] = useState<string | null>(null);
+  const [endInterval, setEndInterval] = useState<string | null>(null);
+
+  const [selectedTeam, setSelectedTeam] = useState<string>("all");
+
+  // -----------------------------
+  // Data
+  // -----------------------------
+  const [data, setData] = useState<SLABreachedResponse | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // -----------------------------
+  // Upload modal
+  // -----------------------------
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+
+  // -----------------------------
+  // Fetch
+  // -----------------------------
   const fetchData = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-
-      const start = startInterval || undefined
-      const end = endInterval ?? startInterval ?? undefined
+      const start = startInterval || undefined;
+      const end = endInterval ?? startInterval ?? undefined;
 
       const url = buildReportUrl(
         "/reports/sla-breached",
@@ -52,107 +70,186 @@ export default function SLABreachedPage() {
         formatDateForApi(date),
         start,
         end,
-      )
+      );
 
-      const response = await fetch(url)
-      
+      const response = await fetch(url);
+
       if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`)
+        throw new Error(`Error HTTP: ${response.status}`);
       }
 
-      const result: SLABreachedResponse = await response.json()
-      setData(result)
+      const result: SLABreachedResponse = await response.json();
+
+      setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido")
+      setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [zone, date, startInterval, endInterval])
+  }, [zone, date, startInterval, endInterval]);
 
-  // Filter data by selected team
-  const filteredIntervals = data?.intervals.filter(
-    (interval) => selectedTeam === "all" || interval.team === selectedTeam
-  ) || []
+  // -----------------------------
+  // Filter intervals by team
+  // -----------------------------
+  const filteredIntervals =
+    data?.intervals.filter(
+      (interval) => selectedTeam === "all" || interval.team === selectedTeam,
+    ) ?? [];
 
-  // Flatten all agents and supervisors from filtered intervals
-  const allAgents: (SLABreachedAgent & { team: string; interval: string })[] = filteredIntervals.flatMap(
-    (interval) =>
-      interval.agents.map((agent) => ({
-        ...agent,
-        team: interval.team,
-        interval: interval.interval,
-      }))
-  )
+  // -----------------------------
+  // Display interval
+  // -----------------------------
+  const intervalLabel = (() => {
+    if (!startInterval) {
+      return "Todo el día";
+    }
 
-  const allSupervisors: (SLABreachedSupervisor & { team: string; interval: string })[] = filteredIntervals.flatMap(
-    (interval) =>
-      interval.supervisors.map((sup) => ({
-        ...sup,
-        team: interval.team,
-        interval: interval.interval,
-      }))
-  )
+    if (endInterval) {
+      return `${startInterval} - ${endInterval.split(":")[0]}:59`;
+    }
 
+    const hour = startInterval.split(":")[0];
+
+    return `${startInterval} - ${hour}:59`;
+  })();
+
+  // -----------------------------
+  // Flatten agents
+  // -----------------------------
+  const allAgents: (SLABreachedAgent & {
+    team: string;
+    interval: string;
+  })[] = filteredIntervals.flatMap((interval) =>
+    interval.agents.map((agent) => ({
+      ...agent,
+      team: interval.team,
+      interval: intervalLabel,
+    })),
+  );
+
+  // -----------------------------
+  // Flatten supervisors
+  // -----------------------------
+  const allSupervisors: (SLABreachedSupervisor & {
+    team: string;
+    interval: string;
+  })[] = filteredIntervals.flatMap((interval) =>
+    interval.supervisors.map((sup) => ({
+      ...sup,
+      team: interval.team,
+      interval: intervalLabel,
+    })),
+  );
+
+  // -----------------------------
+  // Summary
+  // -----------------------------
+  const summary =
+    selectedTeam === "all" && data
+      ? {
+          total_breached: data.meta.total_breached,
+
+          total_agents: data.meta.total_agents,
+
+          total_supervisors: data.meta.total_supervisors,
+        }
+      : {
+          total_breached: filteredIntervals.reduce(
+            (acc, interval) => acc + interval.total_breached,
+            0,
+          ),
+
+          total_agents: filteredIntervals.reduce(
+            (acc, interval) => acc + interval.total_agents,
+            0,
+          ),
+
+          total_supervisors: filteredIntervals.reduce(
+            (acc, interval) => acc + interval.total_supervisors,
+            0,
+          ),
+        };
+
+  // -----------------------------
+  // Copy alerts
+  // -----------------------------
   const handleCopyAgentsText = async () => {
-    let intervalText = "Todo el dia";
-
-    if (startInterval && endInterval) {
-      intervalText = `${startInterval} - ${endInterval}`;
-    } else if (startInterval) {
-      // Tomamos la hora base y armamos :59
-      const hour = startInterval.split(":")[0];
-      intervalText = `${hour}:00 - ${hour}:59`;
-    }
-
     const text = formatSLAAgentsAlertText(
       allAgents,
       selectedTeam === "all" ? "Todos los teams" : selectedTeam,
-      intervalText,
-      zone
+      intervalLabel,
+      zone,
     );
-    await navigator.clipboard.writeText(text)
-  }
+
+    await navigator.clipboard.writeText(text);
+  };
 
   const handleCopySupervisorsText = async () => {
-    let intervalText = "Todo el dia";
-
-    if (startInterval && endInterval) {
-      intervalText = `${startInterval} - ${endInterval}`;
-    } else if (startInterval) {
-      // Tomamos la hora base y armamos :59
-      const hour = startInterval.split(":")[0];
-      intervalText = `${hour}:00 - ${hour}:59`;
-    }
-
     const text = formatSLASupervisorsAlertText(
       allSupervisors,
       selectedTeam === "all" ? "Todos los teams" : selectedTeam,
-      intervalText,
-      zone
-    )
-    await navigator.clipboard.writeText(text)
-  }
+      intervalLabel,
+      zone,
+    );
 
+    await navigator.clipboard.writeText(text);
+  };
+
+  // -----------------------------
+  // Copy links
+  // -----------------------------
   const copyLinksToClipboard = async (links: string[]) => {
     try {
-      const text = links.join("\n") // cada link en nueva línea
-      await navigator.clipboard.writeText(text)
-      console.log("Links copiados")
+      await navigator.clipboard.writeText(links.join("\n"));
     } catch (err) {
-      console.error("Error al copiar:", err)
+      console.error("Error al copiar:", err);
     }
-  }
+  };
 
+  // -----------------------------
+  // Columns
+  // -----------------------------
   const agentColumns = [
-    { key: "name", header: "Agente", sortable: true },
-    { key: "supervisor", header: "Supervisor", sortable: true },
-    { key: "chat_breached", header: "Cantidad", sortable: true, className: "text-center" },
-    { key: "team", header: "Team", sortable: true },
-    { key: "interval", header: "Intervalo" },
+    {
+      key: "name",
+      header: "Agente",
+      sortable: true,
+    },
+
+    {
+      key: "supervisor",
+      header: "Supervisor",
+      sortable: true,
+    },
+
+    {
+      key: "chat_breached",
+      header: "Cantidad",
+      sortable: true,
+      className: "text-center",
+    },
+
+    {
+      key: "team",
+      header: "Team",
+      sortable: true,
+    },
+
+    {
+      key: "interval",
+      header: "Intervalo",
+    },
+
     {
       key: "links",
       header: "Links",
-      render: (item: SLABreachedAgent & { team: string; interval: string }) => (
+
+      render: (
+        item: SLABreachedAgent & {
+          team: string;
+          interval: string;
+        },
+      ) => (
         <button
           onClick={() => copyLinksToClipboard(item.links)}
           className="text-xs bg-cyan-500 hover:bg-cyan-600 text-white px-2 py-1 rounded"
@@ -160,19 +257,51 @@ export default function SLABreachedPage() {
           Copiar ({item.links.length})
         </button>
       ),
-    }
-  ]
+    },
+  ];
 
   const supervisorColumns = [
-    { key: "supervisor", header: "Supervisor", sortable: true },
-    { key: "coordinator", header: "Coordinador", sortable: true },
-    { key: "chat_breached", header: "Cantidad", sortable: true, className: "text-center" },
-    { key: "team", header: "Team", sortable: true },
-    { key: "interval", header: "Intervalo" },
+    {
+      key: "supervisor",
+      header: "Supervisor",
+      sortable: true,
+    },
+
+    {
+      key: "coordinator",
+      header: "Coordinador",
+      sortable: true,
+    },
+
+    {
+      key: "chat_breached",
+      header: "Cantidad",
+      sortable: true,
+      className: "text-center",
+    },
+
+    {
+      key: "team",
+      header: "Team",
+      sortable: true,
+    },
+
+    {
+      key: "interval",
+      header: "Intervalo",
+    },
+
     {
       key: "links",
+
       header: "Links",
-      render: (item: SLABreachedSupervisor & { team: string; interval: string }) => (
+
+      render: (
+        item: SLABreachedSupervisor & {
+          team: string;
+          interval: string;
+        },
+      ) => (
         <button
           onClick={() => copyLinksToClipboard(item.links)}
           className="text-xs bg-cyan-500 hover:bg-cyan-600 text-white px-2 py-1 rounded"
@@ -180,8 +309,8 @@ export default function SLABreachedPage() {
           Copiar ({item.links.length})
         </button>
       ),
-    }
-  ]
+    },
+  ];
 
   return (
     <div className="relative z-10 p-8 max-w-7xl mx-auto">
@@ -191,16 +320,18 @@ export default function SLABreachedPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-red-400/20 to-orange-500/20">
               <AlertTriangle className="h-5 w-5 text-red-400" />
             </div>
+
             <div>
-              <CardTitle className="text-xl text-foreground">SLA Breached</CardTitle>
+              <CardTitle className="text-xl">SLA Breached</CardTitle>
+
               <CardDescription>
                 Reporte de chats vencidos por agente y supervisor
               </CardDescription>
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-6">
-          {/* Filters */}
           <ReportFilters
             zone={zone}
             setZone={setZone}
@@ -219,50 +350,43 @@ export default function SLABreachedPage() {
             uploadLabel="Subir SLA CSV"
           />
 
-          {/* Error state */}
           {error && (
             <div className="flex items-center gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
-              <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+
               <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
 
-          {/* Loading state */}
           {isLoading && (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-              <span className="ml-3 text-muted-foreground">Cargando datos...</span>
+
+              <span className="ml-3">Cargando datos...</span>
             </div>
           )}
 
-          {/* Data tables */}
           {!isLoading && data && (
             <div className="space-y-8">
-              {/* Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                  <p className="text-sm text-muted-foreground">Total Vencidos</p>
-                  <p className="text-2xl font-bold text-red-400">
-                    {filteredIntervals.reduce((acc, i) => acc + i.total_breached, 0)}
-                  </p>
-                </div>
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                  <p className="text-sm text-muted-foreground">Agentes</p>
-                  <p className="text-2xl font-bold text-cyan-400">{allAgents.length}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                  <p className="text-sm text-muted-foreground">Supervisores</p>
-                  <p className="text-2xl font-bold text-cyan-400">{allSupervisors.length}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                  <p className="text-sm text-muted-foreground">Teams</p>
-                  <p className="text-2xl font-bold text-cyan-400">
-                    {new Set(filteredIntervals.map((i) => i.team)).size}
-                  </p>
-                </div>
+                <SummaryCard
+                  label="Total Vencidos"
+                  value={summary.total_breached}
+                />
+
+                <SummaryCard label="Agentes" value={summary.total_agents} />
+
+                <SummaryCard
+                  label="Supervisores"
+                  value={summary.total_supervisors}
+                />
+
+                <SummaryCard
+                  label="Teams"
+                  value={new Set(filteredIntervals.map((i) => i.team)).size}
+                />
               </div>
 
-              {/* Agents Table */}
               <ReportTable
                 title="Agentes con SLA Breached"
                 data={allAgents}
@@ -272,7 +396,6 @@ export default function SLABreachedPage() {
                 emptyMessage="No hay agentes con SLA breached"
               />
 
-              {/* Supervisors Table */}
               <ReportTable
                 title="Supervisores con SLA Breached"
                 data={allSupervisors}
@@ -284,7 +407,6 @@ export default function SLABreachedPage() {
             </div>
           )}
 
-          {/* Empty state */}
           {!isLoading && !data && !error && (
             <div className="flex items-center justify-center p-12 border border-dashed border-slate-700 rounded-lg">
               <p className="text-muted-foreground">
@@ -295,7 +417,6 @@ export default function SLABreachedPage() {
         </CardContent>
       </Card>
 
-      {/* Upload Modal */}
       <CsvUploadModal
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
@@ -305,5 +426,15 @@ export default function SLABreachedPage() {
         onSuccess={fetchData}
       />
     </div>
-  )
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+      <p className="text-sm text-muted-foreground">{label}</p>
+
+      <p className="text-2xl font-bold text-cyan-400">{value}</p>
+    </div>
+  );
 }

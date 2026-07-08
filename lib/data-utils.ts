@@ -10,7 +10,7 @@ export function processQueueData(data: QueueData[]): TableRow[] {
     const channel = item.channel
 
     // Customer mappings
-    if (dept === "CS" && (expertise === "live-order" || expertise === "nonlive-order") && channel === "chat") {
+    if (dept === "CS" && (expertise === "live-order" || expertise === "nonlive-order" || expertise === "postorder-tier1") && channel === "chat") {
       console.log(expertise)
       return "Customer Tier1"
     }
@@ -30,7 +30,7 @@ export function processQueueData(data: QueueData[]): TableRow[] {
     if (dept === "VS" && expertise === "tier1" && channel === "chat") {
       return "Vendor Chat"
     }
-    if (dept === "VS" && (expertise === "tier2" || expertise === "disputes") && (channel === "case-inbox" || channel === "email")) {
+    if (dept === "VS" && (expertise === "tier2" ) && (channel === "case-inbox")) {
       return "Vendor Tier2"
     }
 
@@ -96,6 +96,47 @@ export function getRoundedTime(): string {
   return `${formattedHours}:${roundedMinutes}`
 }
 
+export function getCurrentTimeSpain(): string {
+  const now = new Date()
+
+  // Hora actual en Lima
+  const limaFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Lima",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+
+  const [hours, minutes] = limaFormatter
+    .format(now)
+    .split(":")
+    .map(Number)
+
+  let normalizedHour = hours
+  let normalizedMinute = minutes
+
+  // Rango 10:59 - 11:58 => tomar 10:59
+  if (
+    (hours === 10 && minutes >= 59) ||
+    (hours === 11 && minutes <= 58)
+  ) {
+    normalizedHour = 10
+    normalizedMinute = 59
+  }
+
+  // Crear fecha con el tiempo normalizado en Lima
+  const normalizedDate = new Date()
+  normalizedDate.setHours(normalizedHour, normalizedMinute, 0, 0)
+
+  // Convertir a España
+  return new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(normalizedDate)
+}
+
 export function formatTableAsText(rows: TableRow[]): string {
   const header = "Team\tBacklog\tTickets\tAgents"
   const dataRows = rows.map(
@@ -144,11 +185,17 @@ export function getCustomerTier1Info(data: QueueData[]): ChannelCapacityInfo {
     (item) => item.queueName === "CS-chat-spa-ES-live-order"
   )
 
+  const postorderItem = data.find(
+    (item) => item.queueName === "CS-chat-spa-ES-postorder-tier1"
+  )
+
   const controlAgents = nonLiveItem?.onlineAgentCount || 0
   const totalAgents = liveItem?.onlineAgentCount || 0
   const liveAgents = totalAgents - controlAgents
 
-  const nonLiveTickets = nonLiveItem?.activeTicketsCount || 0
+  let nonLiveTickets = nonLiveItem?.activeTicketsCount || 0
+  const postorderTickets = postorderItem?.activeTicketsCount || 0
+  nonLiveTickets = nonLiveTickets + postorderTickets
   const liveTickets = liveItem?.activeTicketsCount || 0
   const totalTickets = nonLiveTickets + liveTickets
 
@@ -240,9 +287,9 @@ export function getTier2BacklogInfo(data: QueueData[]): Tier2BacklogInfo {
   const vendorItem = data.find(
     (item) => item.queueName === "VS-case-inbox-spa-ES-tier2"
   )
-  const disputesItem = data.find(
-    (item) => item.queueName === "VS-case-inbox-spa-ES-disputes"
-  )
+  // const disputesItem = data.find(
+  //   (item) => item.queueName === "VS-case-inbox-spa-ES-disputes"
+  // )
 
   const calculateHoursToSLA = (longestWaitSeconds: number): number => {
     const slaHours = 24
@@ -256,19 +303,22 @@ export function getTier2BacklogInfo(data: QueueData[]): Tier2BacklogInfo {
     customer: {
       cases: customerItem?.casesBacklog || 0,
       hoursToSLA: calculateHoursToSLA(customerItem?.longestWaitTime || 0),
+      agents: Number(customerItem?.onlineAgentCount)
     },
     rider: {
       cases: riderItem?.casesBacklog || 0,
       hoursToSLA: calculateHoursToSLA(riderItem?.longestWaitTime || 0),
+      agents: Number(riderItem?.onlineAgentCount)
     },
     vendor: {
       cases: vendorItem?.casesBacklog || 0,
       hoursToSLA: calculateHoursToSLA(vendorItem?.longestWaitTime || 0),
+      agents: Number(vendorItem?.onlineAgentCount)
     },
-    disputes: {
-      cases: disputesItem?.casesBacklog || 0,
-      hoursToSLA: calculateHoursToSLA(disputesItem?.longestWaitTime || 0),
-    },
+    // disputes: {
+    //   cases: disputesItem?.casesBacklog || 0,
+    //   hoursToSLA: calculateHoursToSLA(disputesItem?.longestWaitTime || 0),
+    // },
   }
 }
 
@@ -359,23 +409,51 @@ ${formatLine("Vendor Chat", vendorInfo.concurrency, vendorInfo.availableAgents)}
 
 // Format Backlog text for clipboard
 export function formatBacklogText(info: Tier2BacklogInfo): string {
-  const time = getRoundedTime()
+  const time = getCurrentTimeSpain()
   let textCustomer = ''
   info.customer.hoursToSLA <= 0 ? textCustomer = 'SLA Vencido 🚨🚨' : textCustomer = `con ${info.customer.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
   let textRider = ''
   info.rider.hoursToSLA <= 0 ? textRider = 'SLA Vencido 🚨🚨' : textRider = `con ${info.rider.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
   let textVendor = ''
   info.vendor.hoursToSLA <= 0 ? textVendor = 'SLA Vencido 🚨🚨' : textVendor = `con ${info.vendor.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
-  let textDisputes = ''
-  info.vendor.hoursToSLA <= 0 ? textDisputes = 'SLA Vencido 🚨🚨' : textDisputes = `con ${info.disputes.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
-  const disputesText = '13094'
+  // let textDisputes = ''
+  // info.vendor.hoursToSLA <= 0 ? textDisputes = 'SLA Vencido 🚨🚨' : textDisputes = `con ${info.disputes.hoursToSLA - 1 } Hrs para estar fuera de Objetivo en SLA`
+  // const disputesText = '13094'
   // const disputesText = info.disputes.cases > 10000 
   //   ? "+10000 casos" 
   //   : `${info.disputes.cases} casos`
+  const productionCustomer = info.customer.agents * 12
+  const productionRider = info.rider.agents * 9
+  const productionVendor = info.vendor.agents * 8
 
-  return `${toBoldUnicode(`BackLog de las 3 Verticales TIER 2 - ${time} HP`)}
+  let textAlert = `${toBoldUnicode(`BackLog de las 3 Verticales TIER 2 - ${time} HE`)}
 ↪ Customer: ${info.customer.cases} casos - ${textCustomer}
 ↪ Rider: ${info.rider.cases} casos - ${textRider}
-↪ Vendor: ${info.vendor.cases} casos - ${textVendor}
-↪ Disputes: ${info.disputes.cases} casos - ${textDisputes}`
+↪ Vendor: ${info.vendor.cases} casos - ${textVendor}\n\n`
+// ↪ Disputes: ${info.disputes.cases} casos - ${textDisputes}`
+  if (info.customer.hoursToSLA <= 0 ){
+    textAlert += `${toBoldUnicode(`🚨 Alerta de Bandeja CS`)}\n`+
+                  `${toBoldUnicode(`Bandeja Actual:`)} ${info.customer.cases} casos\n`+
+                  `${toBoldUnicode(`Asesores conectados:`)} ${info.customer.agents} HC\n`+
+                  `${toBoldUnicode(`Mínimo 12 casos/hora:`)} reduce ${productionCustomer} casos\n`+
+                  `${toBoldUnicode(`Bandeja estimada:`)} ${info.customer.cases - productionCustomer} sin considerar nuevos ingresos\n\n`
+  }
+
+  if (info.rider.hoursToSLA <= 0 ){
+    textAlert += `${toBoldUnicode(`🚨 Alerta de Bandeja RS`)}\n`+
+                  `${toBoldUnicode(`Bandeja Actual:`)} ${info.rider.cases} casos\n`+
+                  `${toBoldUnicode(`Asesores conectados:`)} ${info.rider.agents} HC\n`+
+                  `${toBoldUnicode(`Mínimo 9 casos/hora:`)} reduce ${productionRider} casos\n`+
+                  `${toBoldUnicode(`Bandeja estimada:`)} ${info.rider.cases - productionRider} sin considerar nuevos ingresos\n\n`
+  }
+
+  if (info.vendor.hoursToSLA <= 0 ){
+    textAlert += `${toBoldUnicode(`🚨 Alerta de Bandeja VS`)}\n`+
+                  `${toBoldUnicode(`Bandeja Actual:`)} ${info.vendor.cases} casos\n`+
+                  `${toBoldUnicode(`Asesores conectados:`)} ${info.vendor.agents} HC\n`+
+                  `${toBoldUnicode(`Mínimo 8 casos/hora:`)} reduce ${productionVendor} casos\n`+
+                  `${toBoldUnicode(`Bandeja estimada:`)} ${info.vendor.cases - productionVendor} sin considerar nuevos ingresos\n\n`
+  }
+
+  return textAlert
 }
