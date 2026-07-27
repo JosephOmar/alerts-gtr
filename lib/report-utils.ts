@@ -85,7 +85,7 @@ export function formatSLASupervisorsAlertText(
   let text = `🚨 ${title} 🚨\n`
   text += `⚠️ ${teamBold} - ${intervalBold} - ${zoneBold}\n\n`
   
-  supervisors.slice(0, 10).forEach((sup, index) => {
+  supervisors.sort((a, b) => b.chat_breached - a.chat_breached).slice(0, 10).forEach((sup, index) => {
     const nameBold = toBoldUnicode(sup.supervisor)
     text += `${index + 1}. ${nameBold} - ${sup.chat_breached} chats\n`
   })

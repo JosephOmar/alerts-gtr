@@ -10,7 +10,7 @@ export function processQueueData(data: QueueData[]): TableRow[] {
     const channel = item.channel
 
     // Customer mappings
-    if (dept === "CS" && (expertise === "live-order" || expertise === "nonlive-order" || expertise === "postorder-tier1") && channel === "chat") {
+    if (dept === "CS" && (expertise === "live-order" || expertise === "nonlive-order") && channel === "chat") {
       console.log(expertise)
       return "Customer Tier1"
     }
@@ -56,7 +56,15 @@ export function processQueueData(data: QueueData[]): TableRow[] {
 
     channelMap[channelName].backlog += item.casesBacklog
     channelMap[channelName].tickets += item.activeTicketsCount
-    if (channelName == "Customer Tier1" || channelName == "Vendor Tier2" || channelName == "Customer Tier2") {
+    if (channelName === "Customer Tier1") {
+      // Para Customer Tier1, solo usamos los agentes de live-order
+      if (item.expertise === "live-order") {
+        channelMap[channelName].head = item.onlineAgentCount
+      }
+    } else if (
+      channelName === "Vendor Tier2" ||
+      channelName === "Customer Tier2"
+    ) {
       channelMap[channelName].head = Math.max(
         channelMap[channelName].head,
         item.onlineAgentCount
@@ -99,36 +107,30 @@ export function getRoundedTime(): string {
 export function getCurrentTimeSpain(): string {
   const now = new Date()
 
-  // Hora actual en Lima
+  // Obtener la hora actual en Lima
   const limaFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Lima",
     hour: "2-digit",
-    minute: "2-digit",
     hour12: false,
   })
 
-  const [hours, minutes] = limaFormatter
-    .format(now)
-    .split(":")
-    .map(Number)
+  const hours = Number(limaFormatter.format(now))
 
-  let normalizedHour = hours
-  let normalizedMinute = minutes
+  // Mantener la hora actual de Lima y forzar minutos a 59
+  const normalizedDate = new Date(now)
 
-  // Rango 10:59 - 11:58 => tomar 10:59
-  if (
-    (hours === 10 && minutes >= 59) ||
-    (hours === 11 && minutes <= 58)
-  ) {
-    normalizedHour = 10
-    normalizedMinute = 59
-  }
+  // IMPORTANTE:
+  // Ajustamos respecto a la diferencia entre la hora local del servidor
+  // y la hora obtenida para Lima.
+  const localHour = normalizedDate.getHours()
+  normalizedDate.setHours(
+    localHour + (hours - localHour - 1),
+    59,
+    0,
+    0
+  )
 
-  // Crear fecha con el tiempo normalizado en Lima
-  const normalizedDate = new Date()
-  normalizedDate.setHours(normalizedHour, normalizedMinute, 0, 0)
-
-  // Convertir a España
+  // Convertir a hora de España
   return new Intl.DateTimeFormat("es-ES", {
     timeZone: "Europe/Madrid",
     hour: "2-digit",
@@ -185,17 +187,17 @@ export function getCustomerTier1Info(data: QueueData[]): ChannelCapacityInfo {
     (item) => item.queueName === "CS-chat-spa-ES-live-order"
   )
 
-  const postorderItem = data.find(
-    (item) => item.queueName === "CS-chat-spa-ES-postorder-tier1"
-  )
+  // const postorderItem = data.find(
+  //   (item) => item.queueName === "CS-chat-spa-ES-postorder-tier1"
+  // )
 
   const controlAgents = nonLiveItem?.onlineAgentCount || 0
   const totalAgents = liveItem?.onlineAgentCount || 0
   const liveAgents = totalAgents - controlAgents
 
   let nonLiveTickets = nonLiveItem?.activeTicketsCount || 0
-  const postorderTickets = postorderItem?.activeTicketsCount || 0
-  nonLiveTickets = nonLiveTickets + postorderTickets
+  // const postorderTickets = postorderItem?.activeTicketsCount || 0
+  // nonLiveTickets = nonLiveTickets + postorderTickets
   const liveTickets = liveItem?.activeTicketsCount || 0
   const totalTickets = nonLiveTickets + liveTickets
 
